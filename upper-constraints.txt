@@ -72,5 +72,5 @@ urllib3==1.24.1
 virtualenv==16.0.0
 wrapt==1.10.11
 rally==1.5.1
-rally-openstack=1.4.0
+rally-openstack==1.4.0
 kubernetes==8.0.1
