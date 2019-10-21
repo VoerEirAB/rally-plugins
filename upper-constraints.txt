@@ -36,7 +36,7 @@ packaging==16.8
 paramiko==2.4.1
 pbr==4.1.1
 prettytable==0.7.2
-pyasn1==0.4.2
+pyasn1==0.4.7
 pycparser==2.18
 pyinotify==0.9.6
 Pygments==2.3.1;python_version=='3.4'
