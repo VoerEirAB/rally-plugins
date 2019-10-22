@@ -35,6 +35,7 @@ setuptools.setup(
     setup_requires=["setuptools_scm"],
     use_scm_version=True,
     name="rally-plugins",
+    version='1.0.0',
     packages=find_packages(exclude=["tests", "tests.*"]),
     description="A set of Rally plugins to run workloads for different "
                 "product testing.",
