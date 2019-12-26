@@ -14,6 +14,7 @@
 
 import os
 import re
+from distutils.version import LooseVersion
 
 from kubernetes import client as k8s_config
 from kubernetes.client import api_client
@@ -34,6 +35,46 @@ from rally.task import service
 
 CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
+
+API_VERSIONS_INFO = {
+    "ReplicaSet": {"1.16": "apps/v1", "default": "extensions/v1beta1"},
+    "Deployment": {"1.16": "apps/v1", "default": "extensions/v1beta1"},
+    "DaemonSet": {"1.16": "apps/v1", "default": "extensions/v1beta1"},
+    "Namespace": {"default": "v1"},
+    "ServiceAccount": {"default": "v1"},
+    "Secret": {"default": "v1"},
+    "Pod": {"default": "v1"},
+    "Endpoints": {"default": "v1"},
+    "PersistentVolume": {"default": "v1"},
+    "PersistentVolumeClaim": {"default": "v1"},
+    "ConfigMap": {"default": "v1"},
+    "ReplicationController": {"default": "v1"},
+    "Service": {"default": "v1"},
+    "StatefulSet": {"default": "apps/v1"},
+    "Job": {"default": "batch/v1"},
+    "StorageClass": {"default": "storage.k8s.io/v1"}
+}
+
+
+def get_api_version(kind, version_info):
+    """ Method to fetch current apiVersion of kubernetes resource kind."""
+    target_version = LooseVersion(
+        '.'.join([version_info['major'], version_info['minor']])
+    )
+
+    version_info = API_VERSIONS_INFO[kind]
+    api_version = version_info['default']
+
+    # check version if resource api Version changed.
+    if len(version_info) > 1:
+        sorted_versions = sorted(version_info.keys(), key=LooseVersion)
+        for v in reversed(sorted_versions):
+            if v == "default":
+                continue
+            if LooseVersion(v) <= target_version:
+                api_version = version_info[v]
+                break
+    return api_version
 
 
 def wait_for_status(name, status, read_method, resource_type=None, **kwargs):
@@ -57,8 +98,8 @@ def wait_for_status(name, status, read_method, resource_type=None, **kwargs):
         current_status = resp.status.phase
         if ((isinstance(status, (list, tuple)) and
              resp.status.phase not in status) or
-            (isinstance(status, str) and
-             resp.status.phase != status)):
+                (isinstance(status, str) and
+                 resp.status.phase != status)):
             i += 1
             commonutils.interruptable_sleep(sleep_time)
         else:
@@ -261,10 +302,10 @@ class Kubernetes(service.Service):
         :param status_wait: wait namespace for Active status
         """
         name = name or self.generate_random_name()
-
+        kind = "Namespace"
         manifest = {
-            "apiVersion": "v1",
-            "kind": "Namespace",
+            "apiVersion": get_api_version(kind, self.get_version()),
+            "kind": kind,
             "metadata": {
                 "name": name,
                 "labels": {
@@ -305,9 +346,10 @@ class Kubernetes(service.Service):
         :param name: serviceAccount name
         :param namespace: namespace where sa should be created
         """
+        kind = "ServiceAccount"
         sa_manifest = {
-            "apiVersion": "v1",
-            "kind": "ServiceAccount",
+            "apiVersion": get_api_version(kind, self.get_version()),
+            "kind": kind,
             "metadata": {
                 "name": name
             }
@@ -322,9 +364,10 @@ class Kubernetes(service.Service):
         :param name: secret name
         :param namespace: namespace where secret should be created
         """
+        kind = "Secret"
         secret_manifest = {
-            "apiVersion": "v1",
-            "kind": "Secret",
+            "apiVersion": get_api_version(kind, self.get_version()),
+            "kind": kind,
             "metadata": {
                 "name": name,
                 "annotations": {
@@ -400,9 +443,10 @@ class Kubernetes(service.Service):
             if protocol is not None:
                 container_spec["ports"][0]["protocol"] = protocol
 
+        kind = "Pod"
         manifest = {
-            "apiVersion": "v1",
-            "kind": "Pod",
+            "apiVersion": get_api_version(kind, self.get_version()),
+            "kind": kind,
             "metadata": {
                 "name": name,
                 "labels": {
@@ -501,9 +545,10 @@ class Kubernetes(service.Service):
         :param type: service type, e.g. ClusterIP or NodePort
         :param labels: labels for service selector
         """
+        kind = "Service"
         manifest = {
-            "apiVersion": "v1",
-            "kind": "Service",
+            "apiVersion": get_api_version(kind, self.get_version()),
+            "kind": kind,
             "metadata": {
                 "name": name,
                 "labels": labels
@@ -535,9 +580,10 @@ class Kubernetes(service.Service):
 
     @atomic.action_timer("kubernetes.create_endpoints")
     def create_endpoints(self, name, namespace, ip, port):
+        kind = "Endpoints"
         manifest = {
-            "apiVersion": "v1",
-            "kind": "Endpoints",
+            "apiVersion": get_api_version(kind, self.get_version()),
+            "kind": kind,
             "metadata": {
                 "name": name
             },
@@ -606,9 +652,10 @@ class Kubernetes(service.Service):
         if command is not None and isinstance(command, (list, tuple)):
             container_spec["command"] = list(command)
 
+        kind = "ReplicationController"
         manifest = {
-            "apiVersion": "v1",
-            "kind": "ReplicationController",
+            "apiVersion": get_api_version(kind, self.get_version()),
+            "kind": kind,
             "metadata": {
                 "name": name,
             },
@@ -732,9 +779,10 @@ class Kubernetes(service.Service):
         if command is not None and isinstance(command, (list, tuple)):
             container_spec["command"] = list(command)
 
+        kind = "ReplicaSet"
         manifest = {
-            "apiVersion": "extensions/v1beta1",
-            "kind": "ReplicaSet",
+            "apiVersion": get_api_version(kind, self.get_version()),
+            "kind": kind,
             "metadata": {
                 "name": name,
                 "labels": {
@@ -856,9 +904,10 @@ class Kubernetes(service.Service):
         if resources is not None and isinstance(resources, dict):
             container_spec["resources"] = resources
 
+        kind = "Deployment"
         manifest = {
-            "apiVersion": "extensions/v1beta1",
-            "kind": "Deployment",
+            "apiVersion": get_api_version(kind, self.get_version()),
+            "kind": kind,
             "metadata": {
                 "name": name,
                 "labels": {
@@ -994,9 +1043,10 @@ class Kubernetes(service.Service):
         if command is not None and isinstance(command, (list, tuple)):
             container_spec["command"] = list(command)
 
+        kind = "StatefulSet"
         manifest = {
-            "apiVersion": "apps/v1",
-            "kind": "StatefulSet",
+            "apiVersion": get_api_version(kind, self.get_version()),
+            "kind": kind,
             "metadata": {
                 "name": name,
                 "labels": {
@@ -1110,9 +1160,10 @@ class Kubernetes(service.Service):
         """
         name = name or self.generate_random_name()
 
+        kind = "Job"
         manifest = {
-            "apiVersion": "batch/v1",
-            "kind": "Job",
+            "apiVersion": get_api_version(kind, self.get_version()),
+            "kind": kind,
             "metadata": {
                 "name": name
             },
@@ -1241,9 +1292,10 @@ class Kubernetes(service.Service):
         if command is not None and isinstance(command, (list, tuple)):
             container_spec["command"] = list(command)
 
+        kind = "DaemonSet"
         manifest = {
-            "apiVersion": "extensions/v1beta1",
-            "kind": "DaemonSet",
+            "apiVersion": get_api_version(kind, self.get_version()),
+            "kind": kind,
             "metadata": {
                 "name": name
             },
@@ -1347,9 +1399,10 @@ class Kubernetes(service.Service):
     def create_local_storageclass(self):
         name = self.generate_random_name()
 
+        kind = "StorageClass"
         manifest = {
-            "kind": "StorageClass",
-            "apiVersion": "storage.k8s.io/v1",
+            "kind": kind,
+            "apiVersion": get_api_version(kind, self.get_version()),
             "metadata": {
                 "name": name
             },
@@ -1386,9 +1439,10 @@ class Kubernetes(service.Service):
         """
         name = name or self.generate_random_name()
 
+        kind = "PersistentVolume"
         manifest = {
-            "kind": "PersistentVolume",
-            "apiVersion": "v1",
+            "kind": kind,
+            "apiVersion": get_api_version(kind, self.get_version()),
             "metadata": {
                 "name": name
             },
@@ -1437,8 +1491,8 @@ class Kubernetes(service.Service):
 
         if status_wait:
             with atomic.ActionTimer(
-                self,
-                "kubernetes.wait_for_local_persistent_volume_termination"
+                    self,
+                    "kubernetes.wait_for_local_persistent_volume_termination"
             ):
                 wait_for_not_found(name,
                                    read_method=self.get_local_pv,
@@ -1456,9 +1510,10 @@ class Kubernetes(service.Service):
         :param size: PV size (see kubernetes docs)
         :return:
         """
+        kind = "PersistentVolumeClaim"
         manifest = {
-            "kind": "PersistentVolumeClaim",
-            "apiVersion": "v1",
+            "kind": kind,
+            "apiVersion": get_api_version(kind, self.get_version()),
             "metadata": {
                 "name": name
             },
@@ -1498,8 +1553,8 @@ class Kubernetes(service.Service):
 
         if status_wait:
             with atomic.ActionTimer(
-                self,
-                "kubernetes.wait_for_local_persistent_volume_claim_termination"
+                    self,
+                    "kubernetes.wait_for_local_persistent_volume_claim_termination"
             ):
                 wait_for_not_found(name,
                                    namespace=namespace,
@@ -1513,9 +1568,10 @@ class Kubernetes(service.Service):
         :param namespace: configMap namespace
         :param data: configMap data
         """
+        kind = "ConfigMap"
         manifest = {
-            "apiVersion": "v1",
-            "kind": "ConfigMap",
+            "apiVersion": get_api_version(kind, self.get_version()),
+            "kind": kind,
             "metadata": {
                 "name": name
             },
