@@ -79,7 +79,7 @@ pyparsing==2.2.0
 pyperclip==1.7.0
 python-barbicanclient==4.9.0
 python-ceilometerclient==2.9.0
-python-cinderclient==5.0.0
+python-cinderclient==4.0.1
 python-dateutil==2.8.1
 python-designateclient==3.0.0
 python-editor==1.0.3
