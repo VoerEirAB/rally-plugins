@@ -217,7 +217,10 @@ class PodWithNodePortAndCheckService(common_scenario.BaseKubernetesScenario):
 
             i = 0
             if server.startswith("http"):
-                ip = server[server.index(":"):server.rindex(":") + 1]
+                if server.index(":") != server.rindex(":"):
+                    ip = server[server.index(":"):server.rindex(":") + 1]
+                else:
+                    ip =  server[server.index(":"):] + ':'
             else:
                 ip = "://" + server[:server.index(":") + 1]
             url = ("http" + ip + str(node_port) + "/")
