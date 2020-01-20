@@ -251,7 +251,12 @@ class Kubernetes(service.Service):
         self.api = api
         self.v1_client = core_v1_api.CoreV1Api(api)
         self.v1_storage = storage_v1_api.StorageV1Api(api)
-        self.v1beta1_ext = extensions_v1beta1_api.ExtensionsV1beta1Api(api)
+        self.version_info = self.get_version()
+        self.target_version = LooseVersion('.'.join([version_info['major'], version_info['minor']]))
+        if self.target_version >= LooseVersion('1.16'):
+            self.api_client = apps_v1_api.AppsV1Api(api)
+        else:
+            self.api_client = extensions_v1beta1_api.ExtensionsV1beta1Api(api)
         self.v1_apps = apps_v1_api.AppsV1Api(api)
         self.v1_batch = batch_v1_api.BatchV1Api(api)
 
@@ -304,7 +309,7 @@ class Kubernetes(service.Service):
         name = name or self.generate_random_name()
         kind = "Namespace"
         manifest = {
-            "apiVersion": get_api_version(kind, self.get_version()),
+            "apiVersion": get_api_version(kind, self.version_info),
             "kind": kind,
             "metadata": {
                 "name": name,
@@ -348,7 +353,7 @@ class Kubernetes(service.Service):
         """
         kind = "ServiceAccount"
         sa_manifest = {
-            "apiVersion": get_api_version(kind, self.get_version()),
+            "apiVersion": get_api_version(kind, self.version_info),
             "kind": kind,
             "metadata": {
                 "name": name
@@ -366,7 +371,7 @@ class Kubernetes(service.Service):
         """
         kind = "Secret"
         secret_manifest = {
-            "apiVersion": get_api_version(kind, self.get_version()),
+            "apiVersion": get_api_version(kind, self.version_info),
             "kind": kind,
             "metadata": {
                 "name": name,
@@ -445,7 +450,7 @@ class Kubernetes(service.Service):
 
         kind = "Pod"
         manifest = {
-            "apiVersion": get_api_version(kind, self.get_version()),
+            "apiVersion": get_api_version(kind, self.version_info),
             "kind": kind,
             "metadata": {
                 "name": name,
@@ -547,7 +552,7 @@ class Kubernetes(service.Service):
         """
         kind = "Service"
         manifest = {
-            "apiVersion": get_api_version(kind, self.get_version()),
+            "apiVersion": get_api_version(kind, self.version_info),
             "kind": kind,
             "metadata": {
                 "name": name,
@@ -582,7 +587,7 @@ class Kubernetes(service.Service):
     def create_endpoints(self, name, namespace, ip, port):
         kind = "Endpoints"
         manifest = {
-            "apiVersion": get_api_version(kind, self.get_version()),
+            "apiVersion": get_api_version(kind, self.version_info),
             "kind": kind,
             "metadata": {
                 "name": name
@@ -654,7 +659,7 @@ class Kubernetes(service.Service):
 
         kind = "ReplicationController"
         manifest = {
-            "apiVersion": get_api_version(kind, self.get_version()),
+            "apiVersion": get_api_version(kind, self.version_info),
             "kind": kind,
             "metadata": {
                 "name": name,
@@ -752,7 +757,7 @@ class Kubernetes(service.Service):
 
     @atomic.action_timer("kubernetes.get_replicaset")
     def get_replicaset(self, name, namespace, **kwargs):
-        return self.v1beta1_ext.read_namespaced_replica_set(
+        return self.api_client.read_namespaced_replica_set(
             name=name,
             namespace=namespace
         )
@@ -781,7 +786,7 @@ class Kubernetes(service.Service):
 
         kind = "ReplicaSet"
         manifest = {
-            "apiVersion": get_api_version(kind, self.get_version()),
+            "apiVersion": get_api_version(kind, self.version_info),
             "kind": kind,
             "metadata": {
                 "name": name,
@@ -814,7 +819,7 @@ class Kubernetes(service.Service):
         if not self._spec.get("serviceaccounts"):
             del manifest["spec"]["template"]["spec"]["serviceAccountName"]
 
-        self.v1beta1_ext.create_namespaced_replica_set(
+        self.api_client.create_namespaced_replica_set(
             namespace=namespace,
             body=manifest
         )
@@ -832,7 +837,7 @@ class Kubernetes(service.Service):
 
     @atomic.action_timer("kubernetes.scale_replicaset")
     def scale_replicaset(self, name, namespace, replicas, status_wait=True):
-        self.v1beta1_ext.patch_namespaced_replica_set(
+        self.api_client.patch_namespaced_replica_set(
             name=name,
             namespace=namespace,
             body={"spec": {"replicas": replicas}}
@@ -855,7 +860,7 @@ class Kubernetes(service.Service):
         :param namespace: replicaset namespace
         :param status_wait: wait for termination if True
         """
-        self.v1beta1_ext.delete_namespaced_replica_set(
+        self.api_client.delete_namespaced_replica_set(
             name=name,
             namespace=namespace,
             body=k8s_config.V1DeleteOptions()
@@ -870,7 +875,7 @@ class Kubernetes(service.Service):
 
     @atomic.action_timer("kubernetes.get_deployment")
     def get_deployment(self, name, namespace, **kwargs):
-        return self.v1beta1_ext.read_namespaced_deployment_status(
+        return self.api_client.read_namespaced_deployment_status(
             name=name,
             namespace=namespace
         )
@@ -905,36 +910,68 @@ class Kubernetes(service.Service):
             container_spec["resources"] = resources
 
         kind = "Deployment"
-        manifest = {
-            "apiVersion": get_api_version(kind, self.get_version()),
-            "kind": kind,
-            "metadata": {
-                "name": name,
-                "labels": {
-                    "app": app
-                }
-            },
-            "spec": {
-                "replicas": replicas,
-                "template": {
-                    "metadata": {
-                        "name": name,
-                        "labels": {
+        if self.target_version >= LooseVersion('1.16'):
+            manifest = {
+                "apiVersion": get_api_version(kind, self.version_info),
+                "kind": kind,
+                "metadata": {
+                    "name": name,
+                    "labels": {
+                        "app": app
+                    }
+                },
+                "spec": {
+                    "selector": {
+                        "matchLabels": {
                             "app": app
                         }
                     },
-                    "spec": {
-                        "serviceAccountName": namespace,
-                        "containers": [container_spec]
+                    "replicas": replicas,
+                    "template": {
+                        "metadata": {
+                            "name": name,
+                            "labels": {
+                                "app": app
+                            }
+                        },
+                        "spec": {
+                            "serviceAccountName": namespace,
+                            "containers": [container_spec]
+                        }
                     }
                 }
             }
-        }
+        else:
+            manifest = {
+                "apiVersion": get_api_version(kind, self.version_info),
+                "kind": kind,
+                "metadata": {
+                    "name": name,
+                    "labels": {
+                        "app": app
+                    }
+                },
+                "spec": {
+                    "replicas": replicas,
+                    "template": {
+                        "metadata": {
+                            "name": name,
+                            "labels": {
+                                "app": app
+                            }
+                        },
+                        "spec": {
+                            "serviceAccountName": namespace,
+                            "containers": [container_spec]
+                        }
+                    }
+                }
+            }
 
         if not self._spec.get("serviceaccounts"):
             del manifest["spec"]["template"]["spec"]["serviceAccountName"]
 
-        self.v1beta1_ext.create_namespaced_deployment(
+        self.api_client.create_namespaced_deployment(
             namespace=namespace,
             body=manifest
         )
@@ -978,7 +1015,7 @@ class Kubernetes(service.Service):
                         "exclusive keys: image, env, resources."
             )
 
-        self.v1beta1_ext.patch_namespaced_deployment(
+        self.api_client.patch_namespaced_deployment(
             name=name,
             namespace=namespace,
             body=deployment
@@ -1001,7 +1038,7 @@ class Kubernetes(service.Service):
         :param namespace: deployment namespace
         :param status_wait: wait for termination if True
         """
-        self.v1beta1_ext.delete_namespaced_deployment(
+        self.api_client.delete_namespaced_deployment(
             name=name,
             namespace=namespace,
             body=k8s_config.V1DeleteOptions()
@@ -1045,7 +1082,7 @@ class Kubernetes(service.Service):
 
         kind = "StatefulSet"
         manifest = {
-            "apiVersion": get_api_version(kind, self.get_version()),
+            "apiVersion": get_api_version(kind, self.version_info),
             "kind": kind,
             "metadata": {
                 "name": name,
@@ -1162,7 +1199,7 @@ class Kubernetes(service.Service):
 
         kind = "Job"
         manifest = {
-            "apiVersion": get_api_version(kind, self.get_version()),
+            "apiVersion": get_api_version(kind, self.version_info),
             "kind": kind,
             "metadata": {
                 "name": name
@@ -1265,7 +1302,7 @@ class Kubernetes(service.Service):
 
     @atomic.action_timer("kubernetes.get_daemonset")
     def get_daemonset(self, name, namespace, **kwargs):
-        return self.v1beta1_ext.read_namespaced_daemon_set(
+        return self.api_client.read_namespaced_daemon_set(
             name,
             namespace=namespace
         )
@@ -1293,32 +1330,61 @@ class Kubernetes(service.Service):
             container_spec["command"] = list(command)
 
         kind = "DaemonSet"
-        manifest = {
-            "apiVersion": get_api_version(kind, self.get_version()),
-            "kind": kind,
-            "metadata": {
-                "name": name
-            },
-            "spec": {
-                "template": {
-                    "metadata": {
-                        "name": name,
-                        "labels": {
+        if self.target_version >= LooseVersion('1.16'):
+            manifest = {
+                "apiVersion": get_api_version(kind, self.version_info),
+                "kind": kind,
+                "metadata": {
+                    "name": name
+                },
+                "spec": {
+                    "selector": {
+                        "matchLabels": {
                             "app": app
                         }
                     },
-                    "spec": {
-                        "serviceAccountName": namespace,
-                        "containers": [container_spec]
+                    "template": {
+                        "metadata": {
+                            "name": name,
+                            "labels": {
+                                "app": app
+                            }
+                        },
+                        "spec": {
+                            "serviceAccountName": namespace,
+                            "containers": [container_spec]
+                        }
                     }
                 }
             }
-        }
+        else:
+            manifest = {
+                "apiVersion": get_api_version(kind, self.version_info),
+                "kind": kind,
+                "metadata": {
+                    "name": name
+                },
+                "spec": {
+                    "template": {
+                        "metadata": {
+                            "name": name,
+                            "labels": {
+                                "app": app
+                            }
+                        },
+                        "spec": {
+                            "serviceAccountName": namespace,
+                            "containers": [container_spec]
+                        }
+                    }
+                }
+            }
+
 
         if not self._spec.get("serviceaccounts"):
             del manifest["spec"]["template"]["spec"]["serviceAccountName"]
 
-        self.v1beta1_ext.create_namespaced_daemon_set(
+        self.api_client.create_namespaced_daemon_set(
             namespace=namespace,
             body=manifest
         )
@@ -1379,7 +1445,7 @@ class Kubernetes(service.Service):
         :param namespace: daemon set namespace
         :param status_wait: wait for termination if True
         """
-        self.v1beta1_ext.delete_namespaced_daemon_set(
+        self.api_client.delete_namespaced_daemon_set(
             name,
             namespace=namespace,
             body=k8s_config.V1DeleteOptions()
@@ -1402,7 +1468,7 @@ class Kubernetes(service.Service):
         kind = "StorageClass"
         manifest = {
             "kind": kind,
-            "apiVersion": get_api_version(kind, self.get_version()),
+            "apiVersion": get_api_version(kind, self.version_info),
             "metadata": {
                 "name": name
             },
@@ -1442,7 +1508,7 @@ class Kubernetes(service.Service):
         kind = "PersistentVolume"
         manifest = {
             "kind": kind,
-            "apiVersion": get_api_version(kind, self.get_version()),
+            "apiVersion": get_api_version(kind, self.version_info),
             "metadata": {
                 "name": name
             },
@@ -1513,7 +1579,7 @@ class Kubernetes(service.Service):
         kind = "PersistentVolumeClaim"
         manifest = {
             "kind": kind,
-            "apiVersion": get_api_version(kind, self.get_version()),
+            "apiVersion": get_api_version(kind, self.version_info),
             "metadata": {
                 "name": name
             },
@@ -1570,7 +1636,7 @@ class Kubernetes(service.Service):
         """
         kind = "ConfigMap"
         manifest = {
-            "apiVersion": get_api_version(kind, self.get_version()),
+            "apiVersion": get_api_version(kind, self.version_info),
             "kind": kind,
             "metadata": {
                 "name": name
