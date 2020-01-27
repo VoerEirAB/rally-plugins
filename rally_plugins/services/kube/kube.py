@@ -252,7 +252,8 @@ class Kubernetes(service.Service):
         self.v1_client = core_v1_api.CoreV1Api(api)
         self.v1_storage = storage_v1_api.StorageV1Api(api)
         self.version_info = self.get_version()
-        self.target_version = LooseVersion('.'.join([version_info['major'], version_info['minor']]))
+        self.target_version = LooseVersion(
+            '.'.join([self.version_info['major'], self.version_info['minor']]))
         if self.target_version >= LooseVersion('1.16'):
             self.api_client = apps_v1_api.AppsV1Api(api)
         else:
@@ -1379,7 +1380,6 @@ class Kubernetes(service.Service):
                     }
                 }
             }
-
 
         if not self._spec.get("serviceaccounts"):
             del manifest["spec"]["template"]["spec"]["serviceAccountName"]
