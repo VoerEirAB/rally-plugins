@@ -62,15 +62,13 @@ def get_api_version(kind, version_info):
         '.'.join([version_info['major'], version_info['minor']])
     )
 
-    version_info = API_VERSIONS_INFO[kind]
-    api_version = version_info['default']
+    version_info = API_VERSIONS_INFO[kind].copy()
+    api_version = version_info.pop('default')
 
     # check version if resource api Version changed.
-    if len(version_info) > 1:
+    if version_info:
         sorted_versions = sorted(version_info.keys(), key=LooseVersion)
         for v in reversed(sorted_versions):
-            if v == "default":
-                continue
             if LooseVersion(v) <= target_version:
                 api_version = version_info[v]
                 break
