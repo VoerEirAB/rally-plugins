@@ -3,7 +3,7 @@
 # process, which may cause wedges in the gate later.
 
 setuptools-scm                                         # MIT
-rally>=0.11.0
-rally-openstack
+#rally>=0.11.0                                      # Touchstone will install manually; check postinst template
+#rally-openstack                                    # Touchstone will install manually; check postinst template
 requests>=2.14.2                                       # Apache License, Version 2.0
 kubernetes>=5.0.0                                       # Apache License Version 2.0
