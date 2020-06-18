@@ -50,6 +50,11 @@ class KubernetesPlatform(platform.Platform):
                         "type": "object",
                         "description": "Kubernetes host optional description"
                     },
+                    "tls_insecure": {
+                        "type": "boolean",
+                        "description": "Whether skip or not tls verification. "
+                                       "Defaults to False."
+                    },
                 },
                 "required": ["server", "certificate-authority", "api_key"],
                 "additionalProperties": False
@@ -98,7 +103,9 @@ class KubernetesPlatform(platform.Platform):
         #   Rally database.
         for key in ("certificate-authority", "client-certificate",
                     "client-key"):
-            if key in self.spec:
+            # added a check to not populate abspath of key if spec is empty
+            # string
+            if key in self.spec and self.spec[key]:
                 self.spec[key] = os.path.abspath(
                     os.path.expanduser(self.spec[key]))
         self.spec.setdefault("tls_insecure", False)

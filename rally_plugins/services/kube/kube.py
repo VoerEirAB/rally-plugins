@@ -67,7 +67,7 @@ def get_api_version(kind, version_info):
 
     # check version if resource api Version changed.
     if len(version_info) > 1:
-        sorted_versions = sorted(version_info.keys(), key=LooseVersion)
+        sorted_versions = sorted(version_info.keys())
         for v in reversed(sorted_versions):
             if v == "default":
                 continue
@@ -228,7 +228,7 @@ class Kubernetes(service.Service):
             config = k8s_config.Configuration()
 
         config.host = self._spec["server"]
-        config.ssl_ca_cert = self._spec["certificate-authority"]
+        config.ssl_ca_cert = self._spec["certificate-authority"] or None
         if self._spec.get("api_key"):
             config.api_key = {"authorization": self._spec["api_key"]}
             if self._spec.get("api_key_prefix"):
@@ -237,8 +237,8 @@ class Kubernetes(service.Service):
         else:
             config.cert_file = self._spec["client-certificate"]
             config.key_file = self._spec["client-key"]
-            if self._spec.get("tls_insecure", False):
-                config.verify_ssl = False
+        if self._spec.get("tls_insecure", False):
+            config.verify_ssl = False
 
         if self._spec.get("disable_assert_hostname") == True:
             config.assert_hostname = False
