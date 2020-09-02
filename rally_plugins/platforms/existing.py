@@ -91,6 +91,30 @@ class KubernetesPlatform(platform.Platform):
                 "required": ["server", "certificate-authority",
                              "client-certificate", "client-key"],
                 "additionalProperties": False
+            },
+            {
+                "description": "The authentication via client certificates.",
+                "properties": {
+                    "server": {
+                        "type": "string",
+                        "description": "An endpoint of Kubernetes API."
+                    },
+                    "certificate-authority": {
+                        "type": "string",
+                        "description": "Path to certificate authority"
+                    },
+                    "tls_insecure": {
+                        "type": "boolean",
+                        "description": "Whether skip or not tls verification. "
+                                       "Defaults to False."
+                    },
+                    "exec": {
+                        "type": "object",
+                        "description": "Kubernetes user exec"
+                    },
+                },
+                "required": ["server", "certificate-authority", "exec"],
+                "additionalProperties": False
             }
         ]
     }
