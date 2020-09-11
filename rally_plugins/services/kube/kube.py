@@ -25,6 +25,8 @@ from kubernetes.client.apis import extensions_v1beta1_api
 from kubernetes.client.apis import version_api
 from kubernetes.client import rest
 from kubernetes.client.apis import storage_v1_api
+from kubernetes.config.kube_config import ConfigNode
+from kubernetes.config.exec_provider import ExecProvider
 from kubernetes.stream import stream
 from rally.common import cfg
 from rally.common import logging
@@ -209,7 +211,14 @@ class Kubernetes(service.Service):
                                          name_generator=name_generator,
                                          atomic_inst=atomic_inst)
         self._spec = spec
-
+        self.is_exec_auth_mode = False
+        self._v1_apps = None
+        self._api_client = None
+        self._v1_batch = None
+        self._v1_storage = None
+        self._v1_client = None
+        self._config = None
+        self._api = None
         # NOTE(andreykurilin): KubernetesClient doesn't provide any __version__
         #   property to identify the client version (you are welcome to fix
         #   this code if I'm wrong). Let's check for some backward incompatible
@@ -222,44 +231,100 @@ class Kubernetes(service.Service):
         else:
             self._k8s_client_version = 4
 
-        if self._k8s_client_version == 3:
-            config = k8s_config.ConfigurationObject()
-        else:
-            config = k8s_config.Configuration()
+        if 'exec' in self._spec:
+            self.is_exec_auth_mode = True
 
-        config.host = self._spec["server"]
-        config.ssl_ca_cert = self._spec["certificate-authority"] or None
-        if self._spec.get("api_key"):
-            config.api_key = {"authorization": self._spec["api_key"]}
-            if self._spec.get("api_key_prefix"):
-                config.api_key_prefix = {
-                    "authorization": self._spec["api_key_prefix"]}
-        else:
-            config.cert_file = self._spec["client-certificate"]
-            config.key_file = self._spec["client-key"]
-        if self._spec.get("tls_insecure", False):
-            config.verify_ssl = False
-
-        if self._spec.get("disable_assert_hostname") == True:
-            config.assert_hostname = False
-
-        if self._k8s_client_version == 3:
-            api = api_client.ApiClient(config=config)
-        else:
-            api = api_client.ApiClient(configuration=config)
-
-        self.api = api
-        self.v1_client = core_v1_api.CoreV1Api(api)
-        self.v1_storage = storage_v1_api.StorageV1Api(api)
         self.version_info = self.get_version()
         self.target_version = LooseVersion(
             '.'.join([self.version_info['major'], self.version_info['minor']]))
-        if self.target_version >= LooseVersion('1.16'):
-            self.api_client = apps_v1_api.AppsV1Api(api)
-        else:
-            self.api_client = extensions_v1beta1_api.ExtensionsV1beta1Api(api)
-        self.v1_apps = apps_v1_api.AppsV1Api(api)
-        self.v1_batch = batch_v1_api.BatchV1Api(api)
+
+    # NOTE : if auth mode is EXEC then we have to create fresh v1_client
+    # object with config details containing new token every time, Otherwise
+    # preserved object is returned.
+
+    @property
+    def api_client(self):
+        if not self._api_client or self.is_exec_auth_mode:
+            if self.target_version >= LooseVersion('1.16'):
+                self._api_client = apps_v1_api.AppsV1Api(self.api)
+            else:
+                self._api_client = extensions_v1beta1_api.ExtensionsV1beta1Api(
+                    self.api)
+
+        return self._api_client
+
+    @property
+    def v1_apps(self):
+        if not self._v1_apps or self.is_exec_auth_mode:
+            self._v1_apps = apps_v1_api.AppsV1Api(self.api)
+
+        return self._v1_apps
+
+    @property
+    def v1_batch(self):
+        if not self._v1_batch or self.is_exec_auth_mode:
+            self._v1_batch = batch_v1_api.BatchV1Api(self.api)
+
+        return self._v1_batch
+
+    @property
+    def v1_storage(self):
+        if not self._v1_storage or self.is_exec_auth_mode:
+            self._v1_storage = storage_v1_api.StorageV1Api(self.api)
+
+        return self._v1_storage
+    
+    @property
+    def v1_client(self):
+        if not self._v1_client or self.is_exec_auth_mode:
+            self._v1_client = core_v1_api.CoreV1Api(self.api)
+
+        return self._v1_client
+
+    @property
+    def config(self):
+        # if auth mode is EXEC then we have to create a fresh token every time.
+        if not self._config or self.is_exec_auth_mode:
+            if self._k8s_client_version == 3:
+                config = k8s_config.ConfigurationObject()
+            else:
+                config = k8s_config.Configuration()
+
+            if self.is_exec_auth_mode:
+                status = ExecProvider(
+                    ConfigNode('exec', self._spec['exec'])).run()
+                if 'token' in status:
+                    self._spec["api_key"] = status['token']
+                    self._spec["api_key_prefix"] = 'Bearer'
+
+            config.host = self._spec["server"]
+            config.ssl_ca_cert = self._spec["certificate-authority"] or None
+            if self._spec.get("api_key"):
+                config.api_key = {"authorization": self._spec["api_key"]}
+                if self._spec.get("api_key_prefix"):
+                    config.api_key_prefix = {
+                        "authorization": self._spec["api_key_prefix"]}
+            else:
+                config.cert_file = self._spec["client-certificate"]
+                config.key_file = self._spec["client-key"]
+            if self._spec.get("tls_insecure", False):
+                config.verify_ssl = False
+
+            if self._spec.get("disable_assert_hostname") == True:
+                config.assert_hostname = False
+            self._config = config
+
+        return self._config
+
+    @property
+    def api(self):
+        if not self._api or self.is_exec_auth_mode:
+            if self._k8s_client_version == 3:
+                self._api = api_client.ApiClient(config=self.config)
+            else:
+                self._api = api_client.ApiClient(configuration=self.config)
+
+        return self._api
 
     def get_version(self):
         return version_api.VersionApi(self.api).get_code().to_dict()
@@ -287,10 +352,11 @@ class Kubernetes(service.Service):
     @atomic.action_timer("kubernetes.list_namespaces")
     def list_namespaces(self):
         """List namespaces."""
-        return [{"name": r.metadata.name,
-                 "uid": r.metadata.uid,
-                 "labels": r.metadata.labels}
-                for r in self.v1_client.list_namespace().items]
+        return [{
+            "name": r.metadata.name,
+            "uid": r.metadata.uid,
+            "labels": r.metadata.labels}
+            for r in self.v1_client.list_namespace().items]
 
     @atomic.action_timer("kubernetes.get_namespace")
     def get_namespace(self, name):
