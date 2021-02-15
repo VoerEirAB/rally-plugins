@@ -56,7 +56,12 @@ API_VERSIONS_INFO = {
     "Job": {"default": "batch/v1"},
     "StorageClass": {"default": "storage.k8s.io/v1"}
 }
-
+# msidana: Setting image policy as IfNotPresent for all xRally resources
+# so that it works in environments with no internet/dockerhub
+# connectivity or where we don't get access to internal dockerhub.
+# The below policy helps in using the locally uploaded image(on 
+# worker nodes) instead of fetching via docker pull command.
+IMAGE_PULL_POLICY = 'IfNotPresent'
 
 def get_api_version(kind, version_info):
     """ Method to fetch current apiVersion of kubernetes resource kind."""
@@ -273,7 +278,7 @@ class Kubernetes(service.Service):
             self._v1_storage = storage_v1_api.StorageV1Api(self.api)
 
         return self._v1_storage
-    
+
     @property
     def v1_client(self):
         if not self._v1_client or self.is_exec_auth_mode:
@@ -504,7 +509,8 @@ class Kubernetes(service.Service):
 
         container_spec = {
             "name": name,
-            "image": image
+            "image": image,
+            "imagePullPolicy": IMAGE_PULL_POLICY
         }
         if command is not None and isinstance(command, (list, tuple)):
             container_spec["command"] = list(command)
@@ -716,10 +722,10 @@ class Kubernetes(service.Service):
         """
         name = self.generate_random_name()
         app = self.generate_random_name()
-
         container_spec = {
             "name": name,
-            "image": image
+            "image": image,
+            "imagePullPolicy": IMAGE_PULL_POLICY
         }
         if command is not None and isinstance(command, (list, tuple)):
             container_spec["command"] = list(command)
@@ -843,10 +849,10 @@ class Kubernetes(service.Service):
         """
         app = self.generate_random_name()
         name = name or self.generate_random_name()
-
         container_spec = {
             "name": name,
-            "image": image
+            "image": image,
+            "imagePullPolicy": IMAGE_PULL_POLICY
         }
         if command is not None and isinstance(command, (list, tuple)):
             container_spec["command"] = list(command)
@@ -967,7 +973,8 @@ class Kubernetes(service.Service):
 
         container_spec = {
             "name": name,
-            "image": image
+            "image": image,
+            "imagePullPolicy": IMAGE_PULL_POLICY
         }
         if command is not None and isinstance(command, (list, tuple)):
             container_spec["command"] = list(command)
@@ -1142,7 +1149,8 @@ class Kubernetes(service.Service):
 
         container_spec = {
             "name": name,
-            "image": image
+            "image": image,
+            "imagePullPolicy": IMAGE_PULL_POLICY
         }
         if command is not None and isinstance(command, (list, tuple)):
             container_spec["command"] = list(command)
@@ -1283,6 +1291,7 @@ class Kubernetes(service.Service):
                             {
                                 "name": name,
                                 "image": image,
+                                "imagePullPolicy": IMAGE_PULL_POLICY,
                                 "command": command
                             }
                         ]
@@ -1391,7 +1400,8 @@ class Kubernetes(service.Service):
 
         container_spec = {
             "name": name,
-            "image": image
+            "image": image,
+            "imagePullPolicy": IMAGE_PULL_POLICY
         }
         if command is not None and isinstance(command, (list, tuple)):
             container_spec["command"] = list(command)
