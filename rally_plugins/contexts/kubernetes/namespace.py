@@ -51,7 +51,9 @@ class NamespaceContext(common_context.BaseKubernetesContext):
             name = self.client.create_namespace(None, status_wait=False)
             self.context["kubernetes"]["namespaces"].append(name)
             if self.config.get("with_serviceaccount"):
-                self.client.create_serviceaccount(name, namespace=name)
+                self.client.create_serviceaccount(
+                    name, namespace=name,
+                    imagepullsecret=self.config.get("imagepullsecret"))
                 self.client.create_secret(name, namespace=name)
 
     def cleanup(self):

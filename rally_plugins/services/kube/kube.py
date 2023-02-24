@@ -417,11 +417,13 @@ class Kubernetes(service.Service):
                                    read_method=self.get_namespace)
 
     @atomic.action_timer("kubernetes.create_serviceaccount")
-    def create_serviceaccount(self, name, namespace):
+    def create_serviceaccount(self, name, namespace, imagepullsecret=None):
         """Create serviceAccount for namespace.
 
         :param name: serviceAccount name
         :param namespace: namespace where sa should be created
+        :param imagepullsecret: imagePullSecret name in a given namespace.
+            Expected format is namespace/secretname
         """
         kind = "ServiceAccount"
         sa_manifest = {
@@ -433,6 +435,25 @@ class Kubernetes(service.Service):
         }
         self.v1_client.create_namespaced_service_account(namespace=namespace,
                                                          body=sa_manifest)
+
+        if imagepullsecret:
+            src_secret_ns, src_secret_name = imagepullsecret.split("/")
+            src_secret = self.v1_client.read_namespaced_secret(
+                name=src_secret_name, namespace=src_secret_ns)
+            target_secret_name = name + "-dockersecret"
+            self.create_image_pull_secret(
+                target_secret_name, namespace=name,
+                secret=src_secret.data['.dockerconfigjson'])
+            patch_manifest = {
+                "imagePullSecrets": [
+                    {
+                        "name": target_secret_name
+                    }
+                ]
+            }
+            self.v1_client.patch_namespaced_service_account(name=name,
+                                                            namespace=namespace,
+                                                            body=patch_manifest)
 
     @atomic.action_timer("kubernetes.create_secret")
     def create_secret(self, name, namespace):
@@ -467,6 +488,29 @@ class Kubernetes(service.Service):
             namespace=namespace,
             body=k8s_config.V1DeleteOptions()
         )
+
+    @atomic.action_timer("kubernetes.create_image_pull_secret")
+    def create_image_pull_secret(self, name, namespace, secret):
+        """Create image pull secret for namespace.
+
+        :param name: image pull secret name
+        :param namespace: namespace where secret should be created
+        param secret: Base64 encoded docker config json
+        """
+        kind = "Secret"
+        secret_manifest = {
+            "apiVersion": get_api_version(kind, self.version_info),
+            "kind": kind,
+            "type": "kubernetes.io/dockerconfigjson",
+            "metadata": {
+                "name": name
+            },
+            "data": {
+                ".dockerconfigjson": secret
+            }
+        }
+        self.v1_client.create_namespaced_secret(namespace=namespace,
+                                                body=secret_manifest)
 
     @atomic.action_timer("kubernetes.get_pod")
     def get_pod(self, name, namespace, **kwargs):
