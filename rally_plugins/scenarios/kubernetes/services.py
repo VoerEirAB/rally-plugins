@@ -12,6 +12,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import random
 import requests
 
 from rally.common import cfg
@@ -205,33 +206,31 @@ class PodWithNodePortAndCheckService(common_scenario.BaseKubernetesScenario):
 
         svc = self.client.get_service(name, namespace=namespace)
 
-        node_port = svc.spec.ports[0].node_port
+        svc_port = svc.spec.ports[0].node_port
+        node_name = random.choice(self.context['node_names'])
 
-        commonutils.interruptable_sleep(CONF.kubernetes.start_prepoll_delay)
+        node_port_url = self.context['get_node_port_url'](node_name, svc_port)
+
+        sleep_time = CONF.kubernetes.status_poll_interval
+        retries_total = CONF.kubernetes.status_total_retries
 
         with atomic.ActionTimer(self, "kubernetes.request_node_port_service"):
-            server = self.context["env"]["platforms"]["kubernetes"]["server"]
-
-            sleep_time = CONF.kubernetes.status_poll_interval
-            retries_total = CONF.kubernetes.status_total_retries
 
             i = 0
-            if server.startswith("http"):
-                if server.index(":") != server.rindex(":"):
-                    ip = server[server.index(":"):server.rindex(":") + 1]
-                else:
-                    ip =  server[server.index(":"):] + ':'
-            else:
-                ip = "://" + server[:server.index(":") + 1]
-            url = ("http" + ip + str(node_port) + "/")
+
             try:
                 while i < retries_total:
                     try:
-                        kwargs = {}
+                        kwargs = {
+                            "verify": False,
+                            "headers": self.client.config.headers,
+                            "cert": self.client.config.client_cert_files,
+                        }
                         if request_timeout:
                             kwargs["timeout"] = request_timeout
-                        requests.get(url, **kwargs)
-                    except (requests.ConnectionError, requests.ReadTimeout) as ex:
+                        response = requests.get(node_port_url, **kwargs)
+                        response.raise_for_status()
+                    except (requests.RequestException) as ex:
                         if i < retries_total:
                             i += 1
                             commonutils.interruptable_sleep(sleep_time)
@@ -239,7 +238,7 @@ class PodWithNodePortAndCheckService(common_scenario.BaseKubernetesScenario):
                             raise exceptions.RallyException(
                                 message="Unable to get response "
                                         "from %(url)s: %(ex)s" % {
-                                            "url": url,
+                                            "url": node_port_url,
                                             "ex": str(ex)
                                         })
                     else:

@@ -303,20 +303,26 @@ class Kubernetes(service.Service):
                     self._spec["api_key_prefix"] = 'Bearer'
 
             config.host = self._spec["server"]
+            config.headers = {}
             config.ssl_ca_cert = self._spec["certificate-authority"] or None
-            if self._spec.get("api_key"):
-                config.api_key = {"authorization": self._spec["api_key"]}
-                if self._spec.get("api_key_prefix"):
-                    config.api_key_prefix = {
-                        "authorization": self._spec["api_key_prefix"]}
-            else:
-                config.cert_file = self._spec["client-certificate"]
-                config.key_file = self._spec["client-key"]
+            _api_key = self._spec.get("api_key")
+            if _api_key:
+                config.api_key = {"authorization": _api_key}
+                config.headers['Authorization'] = _api_key
+                _api_key_prefix = self._spec.get("api_key_prefix")
+                if _api_key_prefix:
+                    config.api_key_prefix = {"authorization": _api_key_prefix}
+                    config.headers['Authorization'] = f'{_api_key_prefix} {_api_key}'
+
+            config.cert_file = self._spec.get("client-certificate")
+            config.key_file = self._spec.get("client-key")
+            config.client_cert_files = (config.cert_file, config.key_file)
             if self._spec.get("tls_insecure", False):
                 config.verify_ssl = False
 
             if self._spec.get("disable_assert_hostname") == True:
                 config.assert_hostname = False
+
             self._config = config
 
         return self._config
