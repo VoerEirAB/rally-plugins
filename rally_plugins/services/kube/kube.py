@@ -303,20 +303,26 @@ class Kubernetes(service.Service):
                     self._spec["api_key_prefix"] = 'Bearer'
 
             config.host = self._spec["server"]
+            config.headers = {}
             config.ssl_ca_cert = self._spec["certificate-authority"] or None
-            if self._spec.get("api_key"):
-                config.api_key = {"authorization": self._spec["api_key"]}
-                if self._spec.get("api_key_prefix"):
-                    config.api_key_prefix = {
-                        "authorization": self._spec["api_key_prefix"]}
-            else:
-                config.cert_file = self._spec["client-certificate"]
-                config.key_file = self._spec["client-key"]
+            api_key = self._spec.get("api_key")
+            if api_key:
+                config.api_key = {"authorization": api_key}
+                config.headers['Authorization'] = api_key
+                api_key_prefix = self._spec.get("api_key_prefix")
+                if api_key_prefix:
+                    config.api_key_prefix = {"authorization": api_key_prefix}
+                    config.headers['Authorization'] = f'{api_key_prefix} {api_key}'
+
+            config.cert_file = self._spec.get("client-certificate")
+            config.key_file = self._spec.get("client-key")
+            config.client_cert_files = (config.cert_file, config.key_file)
             if self._spec.get("tls_insecure", False):
                 config.verify_ssl = False
 
             if self._spec.get("disable_assert_hostname") == True:
                 config.assert_hostname = False
+
             self._config = config
 
         return self._config
@@ -1404,6 +1410,7 @@ class Kubernetes(service.Service):
     def list_node(self):
         return self.v1_client.list_node()
 
+    @atomic.action_timer("kubernetes.list_filtered_nodes")
     def list_filtered_nodes(self, node_labels=None):
         """Return list of optionally filtered nodes names.
 

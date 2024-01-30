@@ -41,6 +41,7 @@ class NamespaceContext(common_context.BaseKubernetesContext):
     DEFAULT_CONFIG = {"namespace_choice_method": "random"}
 
     def setup(self):
+        """Method to create/verify context topology and populate details."""
         self.context["kubernetes"].update({
             "namespace_choice_method": self.config["namespace_choice_method"],
             "serviceaccounts": self.config.get("with_serviceaccount") or False
@@ -57,6 +58,7 @@ class NamespaceContext(common_context.BaseKubernetesContext):
                 self.client.create_secret(name, namespace=name)
 
     def cleanup(self):
+        """Method to clean up resource created for context."""
         for name in self.context["kubernetes"].get("namespaces"):
             self.client.delete_namespace(name)
 
