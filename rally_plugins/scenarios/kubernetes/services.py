@@ -228,7 +228,7 @@ class PodWithNodePortAndCheckService(common_scenario.BaseKubernetesScenario):
                         kwargs= {
                             "headers": client_config.headers,
                             "cert": client_config.client_cert_files,
-                            "verify": client_config.ssl_ca_cert if client_config.verify_ssl else False,
+                            "verify": client_config.ssl_ca_cert or client_config.verify_ssl,
                             "timeout": request_timeout or None,
                         }
                         response = requests.get(node_port_url, **kwargs)
