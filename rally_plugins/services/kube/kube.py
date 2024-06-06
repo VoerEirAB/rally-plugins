@@ -1407,8 +1407,8 @@ class Kubernetes(service.Service):
                                    active=True)
 
     @atomic.action_timer("kubernetes.list_node")
-    def list_node(self):
-        return self.v1_client.list_node()
+    def list_node(self, label_selector=None):
+        return self.v1_client.list_node(label_selector=label_selector)
 
     @atomic.action_timer("kubernetes.list_filtered_nodes")
     def list_filtered_nodes(self, node_labels=None):
@@ -1416,16 +1416,15 @@ class Kubernetes(service.Service):
 
         :param node_labels: map, each key is a label name with some value
         """
-        node_meta = [node.metadata for node in self.list_node().items]
-        if node_labels is None:
-            return [meta.name for meta in node_meta]
+        node_label_string = None
+        if node_labels:
+            node_label_string = ','.join(
+                [f"{key}={value}" for key, value in node_labels.items()])
 
-        node_names = []
-        for meta in node_meta:
-            for k, v in meta.labels.items():
-                if k in node_labels and node_labels[k] == v:
-                    node_names.append(meta.name)
-        return node_names
+        node_meta = [node.metadata for node in
+                        self.list_node(label_selector=node_label_string).items]
+
+        return [meta.name for meta in node_meta]
 
     @atomic.action_timer("kubernetes.get_daemonset")
     def get_daemonset(self, name, namespace, **kwargs):
@@ -1510,6 +1509,9 @@ class Kubernetes(service.Service):
 
         if not self._spec.get("serviceaccounts"):
             del manifest["spec"]["template"]["spec"]["serviceAccountName"]
+
+        if node_labels:
+            manifest["spec"]["template"]["spec"]["nodeSelector"] = node_labels
 
         self.api_client.create_namespaced_daemon_set(
             namespace=namespace,
