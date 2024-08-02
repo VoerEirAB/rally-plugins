@@ -32,10 +32,11 @@ EXRAS_REQUIREMENTS = {}
 
 
 setuptools.setup(
-    setup_requires=["setuptools_scm"],
+    # version only works with python3.7; update the version when migrating to 
+    # python 3.10 or newer.
+    setup_requires=["setuptools_scm==3.3.3"],
     use_scm_version=True,
     name="rally-plugins",
-    version='1.0.0',
     packages=find_packages(exclude=["tests", "tests.*"]),
     description="A set of Rally plugins to run workloads for different "
                 "product testing.",
