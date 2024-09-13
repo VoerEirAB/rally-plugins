@@ -114,6 +114,7 @@ requestsexceptions==1.4.0
 rfc3986==1.4.0
 rsa==4.6
 semantic-version==2.8.5
+setuptools==50.3.0
 setuptools-scm==3.3.3
 simplejson==3.17.2
 six==1.15.0
