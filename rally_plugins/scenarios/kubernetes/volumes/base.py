@@ -23,7 +23,7 @@ class PodWithVolumeBaseScenario(common_scenario.BaseKubernetesScenario):
         self.namespace = self.choose_namespace()
 
     def run(self, image, name=None, check_cmd=None, command=None,
-            error_regexp=None, volume=None, status_wait=True):
+            error_regexp=None, volume=None, status_wait=True, labels=None):
         """Super class for all kubernetes pod with volume scenarios.
 
         :param image: pod's image
@@ -35,6 +35,7 @@ class PodWithVolumeBaseScenario(common_scenario.BaseKubernetesScenario):
         :param volume: a dict, which contains `mount_path` and `volume` keys
                with parts of pod's manifest as values
         :param status_wait: wait for pod's status if True
+        :param labels: additional labels to be attached to the resource
         """
         name = self.client.create_pod(
             image,
@@ -42,7 +43,8 @@ class PodWithVolumeBaseScenario(common_scenario.BaseKubernetesScenario):
             volume=volume,
             namespace=self.namespace,
             command=command,
-            status_wait=status_wait
+            status_wait=status_wait,
+            labels=labels
         )
 
         if check_cmd:

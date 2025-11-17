@@ -20,13 +20,14 @@ from rally_plugins.scenarios.kubernetes import common as common_scenario
 @scenario.configure("Kubernetes.create_and_delete_job", platform="kubernetes")
 class CreateAndDeleteJob(common_scenario.BaseKubernetesScenario):
 
-    def run(self, image, command, name=None, status_wait=True):
+    def run(self, image, command, name=None, status_wait=True, labels=None):
         """Create job with no restart policy, wait for success and delete then.
 
         :param image: job container's image
         :param command: job container's command
         :param name: job custom name
         :param status_wait: wait for success if True
+        :param labels: additional labels to be attached to the resource
         """
         namespace = self.choose_namespace()
 
@@ -35,7 +36,8 @@ class CreateAndDeleteJob(common_scenario.BaseKubernetesScenario):
             namespace=namespace,
             image=image,
             command=command,
-            status_wait=status_wait
+            status_wait=status_wait,
+            labels=labels
         )
 
         self.client.delete_job(

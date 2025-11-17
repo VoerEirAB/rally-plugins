@@ -21,13 +21,15 @@ from rally_plugins.scenarios.kubernetes import common as common_scenario
                     platform="kubernetes")
 class CreateCheckAndDeleteDaemonSet(common_scenario.BaseKubernetesScenario):
 
-    def run(self, image, command=None, node_labels=None, status_wait=True):
+    def run(self, image, command=None, node_labels=None, status_wait=True, 
+            labels=None):
         """Create daemon set, check it's pods on each node and delete it then.
 
         :param image: daemon set template image
         :param command: daemon set template command
         :param node_labels: map of labels, by which nodes would be filtered
         :param status_wait: wait for status if True
+        :param labels: additional labels to be attached to the resource
         """
         namespace = self.choose_namespace()
 
@@ -36,7 +38,8 @@ class CreateCheckAndDeleteDaemonSet(common_scenario.BaseKubernetesScenario):
             image=image,
             command=command,
             node_labels=node_labels,
-            status_wait=status_wait
+            status_wait=status_wait,
+            labels=labels
         )
         self.client.check_daemonset(
             namespace=namespace,
