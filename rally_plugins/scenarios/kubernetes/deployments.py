@@ -29,7 +29,8 @@ class CreateAndDeleteDeployment(common.BaseKubernetesScenario):
     of replicas, wait until it won't be running and delete it after.
     """
 
-    def run(self, replicas, image, name=None, command=None, status_wait=True):
+    def run(self, replicas, image, name=None, command=None, status_wait=True,
+            labels=None):
         """Create and delete deployment and wait for status optionally.
 
         :param replicas: number of replicas for deployment
@@ -37,6 +38,7 @@ class CreateAndDeleteDeployment(common.BaseKubernetesScenario):
         :param name: custom deployment name
         :param status_wait: wait for full status if True
         :param command: array of strings representing container command
+        :param labels: additional labels to be attached to the resource
         """
         namespace = self.choose_namespace()
 
@@ -46,7 +48,8 @@ class CreateAndDeleteDeployment(common.BaseKubernetesScenario):
             image=image,
             namespace=namespace,
             command=command,
-            status_wait=status_wait
+            status_wait=status_wait,
+            labels=labels
         )
 
         self.client.delete_deployment(
@@ -63,8 +66,8 @@ class CreateRolloutAndDeleteDeployment(common.BaseKubernetesScenario):
     Create deployment, rollout deployment with some args and delete it then.
     """
 
-    def run(self, image, replicas, changes, name=None, command=None,
-            env=None, resources=None, status_wait=True):
+    def run(self, image, replicas, changes, name=None, command=None, env=None,
+            resources=None, status_wait=True, labels=None):
         """Create deployment, scale for number of replicas and then delete it.
 
         :param image: deployment pod template image
@@ -76,6 +79,7 @@ class CreateRolloutAndDeleteDeployment(common.BaseKubernetesScenario):
         :param name: custom deployment name
         :param command: array of strings representing container command
         :param status_wait: wait for full status if True
+        :param labels: additional labels to be attached to the resource
         """
         namespace = self.choose_namespace()
 
@@ -87,7 +91,8 @@ class CreateRolloutAndDeleteDeployment(common.BaseKubernetesScenario):
             command=command,
             env=env,
             resources=resources,
-            status_wait=status_wait
+            status_wait=status_wait,
+            labels=labels
         )
 
         self.client.rollout_deployment(

@@ -378,11 +378,12 @@ class Kubernetes(service.Service):
         return self.v1_client.read_namespace(name)
 
     @atomic.action_timer("kubernetes.create_namespace")
-    def create_namespace(self, name, status_wait=True):
+    def create_namespace(self, name, status_wait=True, labels=None):
         """Create namespace and wait until status phase won't be Active.
 
         :param name: namespace name
         :param status_wait: wait namespace for Active status
+        :param labels: additional labels to be attached to the resource
         """
         name = name or self.generate_random_name()
         kind = "Namespace"
@@ -396,6 +397,8 @@ class Kubernetes(service.Service):
                 }
             }
         }
+        if labels:
+            manifest["metadata"]["labels"].update(labels)
         self.v1_client.create_namespace(body=manifest)
 
         if status_wait:
@@ -423,12 +426,14 @@ class Kubernetes(service.Service):
                                    read_method=self.get_namespace)
 
     @atomic.action_timer("kubernetes.create_serviceaccount")
-    def create_serviceaccount(self, name, namespace, imagepullsecret=None):
+    def create_serviceaccount(self, name, namespace, imagepullsecret=None,
+                              labels=None):
         """Create serviceAccount for namespace.
 
         :param name: serviceAccount name
         :param namespace: namespace where sa should be created
         :param imagepullsecret: imagePullSecret name in a given namespace.
+        :param labels: additional labels to be attached to the resource
             Expected format is namespace/secretname
         """
         kind = "ServiceAccount"
@@ -439,6 +444,8 @@ class Kubernetes(service.Service):
                 "name": name
             }
         }
+        if labels:
+            sa_manifest["metadata"]["labels"] = labels
         self.v1_client.create_namespaced_service_account(namespace=namespace,
                                                          body=sa_manifest)
 
@@ -462,11 +469,12 @@ class Kubernetes(service.Service):
                                                             body=patch_manifest)
 
     @atomic.action_timer("kubernetes.create_secret")
-    def create_secret(self, name, namespace):
+    def create_secret(self, name, namespace, labels=None):
         """Create secret with token for namespace.
 
         :param name: secret name
         :param namespace: namespace where secret should be created
+        :param labels: additional labels to be attached to the resource
         """
         kind = "Secret"
         secret_manifest = {
@@ -479,6 +487,10 @@ class Kubernetes(service.Service):
                 }
             }
         }
+        if labels:
+            if "labels" not in secret_manifest["metadata"]:
+                secret_manifest["metadata"].setdefault("labels", {})
+            secret_manifest["metadata"]["labels"].update(labels)
         self.v1_client.create_namespaced_secret(namespace=namespace,
                                                 body=secret_manifest)
 
@@ -540,8 +552,8 @@ class Kubernetes(service.Service):
 
     @atomic.action_timer("kubernetes.create_pod")
     def create_pod(self, image, namespace, command=None, volume=None,
-                   port=None, protocol=None, labels=None, name=None,
-                   status_wait=True):
+                   port=None, protocol=None, name=None, status_wait=True,
+                   labels=None):
         """Create pod and wait until status phase won't be Running.
 
         :param image: pod's image
@@ -554,6 +566,7 @@ class Kubernetes(service.Service):
         :param labels: additional labels for pod
         :param command: array of strings which represents container command
         :param status_wait: wait pod for Running status
+        :param labels: additional labels to be attached to the resource
         """
         name = name or self.generate_random_name()
 
@@ -672,6 +685,7 @@ class Kubernetes(service.Service):
         :param protocol: service port protocol
         :param type: service type, e.g. ClusterIP or NodePort
         :param labels: labels for service selector
+        :param labels: additional labels to be attached to the resource
         """
         kind = "Service"
         manifest = {
@@ -707,7 +721,14 @@ class Kubernetes(service.Service):
         )
 
     @atomic.action_timer("kubernetes.create_endpoints")
-    def create_endpoints(self, name, namespace, ip, port):
+    def create_endpoints(self, name, namespace, ip, port, labels=None):
+        """ Create endpoint with some name, namespace, ip and port
+        :param name: endpoint name
+        :param namespace: endpoint namespace
+        :param ip: endpoint ip
+        :param port: endpoint port
+        :param labels: additional labels to be attached to the resource
+        """
         kind = "Endpoints"
         manifest = {
             "apiVersion": get_api_version(kind, self.version_info),
@@ -730,6 +751,8 @@ class Kubernetes(service.Service):
                 }
             ]
         }
+        if labels:
+            manifest["metadata"]["labels"].update(labels)
         self.v1_client.create_namespaced_endpoints(
             namespace=namespace,
             body=manifest
@@ -759,8 +782,8 @@ class Kubernetes(service.Service):
         )
 
     @atomic.action_timer("kubernetes.create_replication_controller")
-    def create_rc(self, replicas, image, namespace, command=None,
-                  status_wait=True):
+    def create_rc(self, replicas, image, namespace, command=None, 
+                  status_wait=True, labels=None):
         """Create RC and wait until it won't be running.
 
         :param replicas: number of replicas
@@ -769,6 +792,7 @@ class Kubernetes(service.Service):
         :param command: array of strings representing container command
         :param status_wait: wait replication controller for actual running
                replicas
+        :param labels: additional labels to be attached to the resource
         """
         name = self.generate_random_name()
         app = self.generate_random_name()
@@ -806,6 +830,9 @@ class Kubernetes(service.Service):
                 }
             }
         }
+
+        if labels:
+            manifest["metadata"]["labels"].update(labels)
 
         if not self._spec.get("serviceaccounts"):
             del manifest["spec"]["template"]["spec"]["serviceAccountName"]
@@ -886,8 +913,8 @@ class Kubernetes(service.Service):
         )
 
     @atomic.action_timer("kubernetes.create_replicaset")
-    def create_replicaset(self, name, namespace, replicas, image,
-                          command=None, status_wait=True):
+    def create_replicaset(self, name, namespace, replicas, image, command=None,
+                          status_wait=True, labels=None):
         """Create replicaset and wait until it won't be ready.
 
         :param name: replicaset name
@@ -896,6 +923,7 @@ class Kubernetes(service.Service):
         :param image: container's template image
         :param command: container's template array of strings command
         :param status_wait: wait for readiness if True
+        :param labels: additional labels to be attached to the resource
         """
         app = self.generate_random_name()
         name = name or self.generate_random_name()
@@ -938,6 +966,9 @@ class Kubernetes(service.Service):
                 }
             }
         }
+
+        if labels:
+            manifest["metadata"]["labels"].update(labels)
 
         if not self._spec.get("serviceaccounts"):
             del manifest["spec"]["template"]["spec"]["serviceAccountName"]
@@ -1004,9 +1035,9 @@ class Kubernetes(service.Service):
         )
 
     @atomic.action_timer("kubernetes.create_deployment")
-    def create_deployment(self, name, namespace, replicas, image,
+    def create_deployment(self, name, namespace, replicas, image, 
                           resources=None, env=None, command=None,
-                          status_wait=True):
+                          status_wait=True, labels=None):
         """Create replicaset and wait until it won't be ready.
 
         :param name: replicaset name
@@ -1017,6 +1048,7 @@ class Kubernetes(service.Service):
         :param env: container's template env variables array
         :param command: container's template array of strings command
         :param status_wait: wait for readiness if True
+        :param labels: additional labels to be attached to the resource
         """
         app = self.generate_random_name()
         name = name or self.generate_random_name()
@@ -1091,6 +1123,9 @@ class Kubernetes(service.Service):
                     }
                 }
             }
+
+        if labels:
+            manifest["metadata"]["labels"].update(labels)
 
         if not self._spec.get("serviceaccounts"):
             del manifest["spec"]["template"]["spec"]["serviceAccountName"]
@@ -1184,7 +1219,7 @@ class Kubernetes(service.Service):
 
     @atomic.action_timer("kubernetes.create_statefulset")
     def create_statefulset(self, name, namespace, replicas, image,
-                           command=None, status_wait=True):
+                           command=None, status_wait=True, labels=None):
         """Create statefulset and optionally wait for ready replicas.
 
         :param name: statefulset custom name
@@ -1193,6 +1228,7 @@ class Kubernetes(service.Service):
         :param image: container's template image
         :param command: container's template array of strings command
         :param status_wait: wait for ready replicas if True
+        :param labels: additional labels to be attached to the resource
         """
         app = self.generate_random_name()
         name = name or self.generate_random_name()
@@ -1236,6 +1272,9 @@ class Kubernetes(service.Service):
                 }
             }
         }
+
+        if labels:
+            manifest["metadata"]["labels"].update(labels)
 
         if not self._spec.get("serviceaccounts"):
             del manifest["spec"]["template"]["spec"]["serviceAccountName"]
@@ -1309,7 +1348,7 @@ class Kubernetes(service.Service):
 
     @atomic.action_timer("kubernetes.create_job")
     def create_job(self, name, namespace, image, command,
-                   restart_policy="Never", status_wait=True):
+                   restart_policy="Never", status_wait=True, labels=None):
         """Create job and optionally wait for status.
 
         :param name: job custom name
@@ -1318,6 +1357,7 @@ class Kubernetes(service.Service):
         :param command: job container's command
         :param restart_policy: job template restartPolicy, default is "Never"
         :param status_wait: wait for status if True
+        :param labels: additional labels to be attached to the resource
         :return: name
         """
         name = name or self.generate_random_name()
@@ -1349,6 +1389,9 @@ class Kubernetes(service.Service):
                 }
             }
         }
+
+        if labels:
+            manifest["metadata"]["labels"].update(labels)
 
         if not self._spec.get("serviceaccounts"):
             del manifest["spec"]["template"]["spec"]["serviceAccountName"]
@@ -1434,8 +1477,8 @@ class Kubernetes(service.Service):
         )
 
     @atomic.action_timer("kubernetes.create_daemonset")
-    def create_daemonset(self, namespace, image, command=None,
-                         node_labels=None, status_wait=True):
+    def create_daemonset(self, namespace, image, command=None, 
+                         node_labels=None, status_wait=True, labels=None):
         """Create daemon set and optionally wait for status.
 
         :param namespace: daemon set namespace
@@ -1443,6 +1486,7 @@ class Kubernetes(service.Service):
         :param command: daemon set template command
         :param node_labels: map, each key is a label name with some value
         :param status_wait: wait for status if True
+        :param labels: additional labels to be attached to the resource
         :return: name and app
         """
         name = self.generate_random_name()
@@ -1509,6 +1553,9 @@ class Kubernetes(service.Service):
 
         if not self._spec.get("serviceaccounts"):
             del manifest["spec"]["template"]["spec"]["serviceAccountName"]
+
+        if labels:
+            manifest["metadata"]["labels"].update(labels)
 
         if node_labels:
             manifest["spec"]["template"]["spec"]["nodeSelector"] = node_labels
@@ -1591,7 +1638,11 @@ class Kubernetes(service.Service):
                                    daemonset=True)
 
     @atomic.action_timer("kubernetes.create_local_storageclass")
-    def create_local_storageclass(self):
+    def create_local_storageclass(self, labels=None):
+        """ Create local storageclass 
+        :param labels: additional labels to be attached to the resource
+        :return: name
+        """
         name = self.generate_random_name()
 
         kind = "StorageClass"
@@ -1604,6 +1655,10 @@ class Kubernetes(service.Service):
             "provisioner": "kubernetes.io/no-provisioner",
             "volumeBindingMode": "WaitForFirstConsumer"
         }
+        if labels:
+            if "labels" not in manifest["metadata"]:
+                manifest["metadata"].setdefault("labels", {})
+            manifest["metadata"]["labels"].update(labels)
 
         self.v1_storage.create_storage_class(body=manifest)
         return name
@@ -1618,7 +1673,7 @@ class Kubernetes(service.Service):
     @atomic.action_timer("kubernetes.create_local_persistent_volume")
     def create_local_pv(self, name, storage_class, size, volume_mode,
                         local_path, access_modes, node_affinity,
-                        status_wait=True):
+                        status_wait=True, labels=None):
         """Create local persistent volume and optionally wait for readiness.
         :param name: local PV name
         :param storage_class: storageClass created for local PV
@@ -1630,6 +1685,7 @@ class Kubernetes(service.Service):
         :param node_affinity: map represents PV nodeAffinity (see kubernetes
                docs)
         :param status_wait: wait for status if True
+        :param labels: additional labels to be attached to the resource
         :return: name
         """
         name = name or self.generate_random_name()
@@ -1655,6 +1711,9 @@ class Kubernetes(service.Service):
                 "nodeAffinity": node_affinity
             }
         }
+
+        if labels:
+            manifest["metadata"]["labels"].update(labels)
 
         self.v1_client.create_persistent_volume(body=manifest)
 
@@ -1695,7 +1754,7 @@ class Kubernetes(service.Service):
 
     @atomic.action_timer("kubernetes.create_local_persistent_volume_claim")
     def create_local_pvc(self, name, namespace, storage_class, access_modes,
-                         size):
+                         size, labels=None):
         """Create local persistent volume claim.
         :param name: local PVC name
         :param namespace: local PVC namespace
@@ -1703,6 +1762,7 @@ class Kubernetes(service.Service):
         :param access_modes: array of strings - access modes (see kubernetes
                docs)
         :param size: PV size (see kubernetes docs)
+        :param labels: additional labels to be attached to the resource
         :return:
         """
         kind = "PersistentVolumeClaim"
@@ -1722,6 +1782,9 @@ class Kubernetes(service.Service):
                 "storageClassName": storage_class
             }
         }
+
+        if labels:
+            manifest["metadata"]["labels"].update(labels)
 
         self.v1_client.create_namespaced_persistent_volume_claim(
             namespace=namespace,
@@ -1757,11 +1820,12 @@ class Kubernetes(service.Service):
                                    resource_type="Persistent Volume Claim")
 
     @atomic.action_timer("kubernetes.create_configmap")
-    def create_configmap(self, name, namespace, data):
+    def create_configmap(self, name, namespace, data, labels=None):
         """Create configMap resource.
         :param name: configMap resource name
         :param namespace: configMap namespace
         :param data: configMap data
+        :param labels: additional labels to be attached to the resource
         """
         kind = "ConfigMap"
         manifest = {
@@ -1772,6 +1836,8 @@ class Kubernetes(service.Service):
             },
             "data": data
         }
+        if labels:
+            manifest["metadata"]["labels"].update(labels)
         self.v1_client.create_namespaced_config_map(namespace=namespace,
                                                     body=manifest)
 

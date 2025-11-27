@@ -26,13 +26,15 @@ class RCCreateAndDelete(common_scenario.BaseKubernetesScenario):
     and number of replicas, wait until it won't be running and delete it after.
     """
 
-    def run(self, image, replicas, command=None, status_wait=True):
+    def run(self, image, replicas, command=None, status_wait=True,
+            labels=None):
         """Create and delete replication controller.
 
         :param replicas: number of replicas for replication controller
         :param image: replication controller image
         :param command: array of strings representing container command
         :param status_wait: wait replication controller status
+        :param labels: additional labels to be attached to the resource
         """
         namespace = self.choose_namespace()
         name = self.client.create_rc(
@@ -40,7 +42,8 @@ class RCCreateAndDelete(common_scenario.BaseKubernetesScenario):
             image=image,
             namespace=namespace,
             command=command,
-            status_wait=status_wait
+            status_wait=status_wait,
+            labels=labels
         )
 
         self.client.delete_rc(
@@ -62,7 +65,7 @@ class CreateScaleAndDeleteRCPlugin(common_scenario.BaseKubernetesScenario):
     """
 
     def run(self, image, replicas, scale_replicas, command=None,
-            status_wait=True):
+            status_wait=True, labels=None):
         """Create RC, scale with replicas, revert scale and then delete it.
 
         :param image: RC pod template image
@@ -70,6 +73,7 @@ class CreateScaleAndDeleteRCPlugin(common_scenario.BaseKubernetesScenario):
         :param scale_replicas: number of replicas to scale
         :param command: array of strings representing container command
         :param status_wait: wait replication controller status
+        :param labels: additional labels to be attached to the resource
         """
         namespace = self.choose_namespace()
 
@@ -78,7 +82,8 @@ class CreateScaleAndDeleteRCPlugin(common_scenario.BaseKubernetesScenario):
             replicas=replicas,
             image=image,
             command=command,
-            status_wait=status_wait
+            status_wait=status_wait,
+            labels=labels
         )
 
         self.client.scale_rc(

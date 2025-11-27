@@ -23,8 +23,9 @@ from rally_plugins.scenarios.kubernetes.volumes import base
 )
 class CreateAndDeletePodWithConfigMapVolume(base.PodWithVolumeBaseScenario):
 
-    def run(self, image, mount_path, configmap_data, subpath=None,
-            check_cmd=None, error_regexp=None, command=None, status_wait=True):
+    def run(self, image, mount_path, configmap_data, subpath=None, 
+            check_cmd=None, error_regexp=None, command=None, status_wait=True,
+            labels=None):
         """Create pod with configMap volume, optionally check and delete then.
 
         Create pod with configMap volume, optionally wait for it's readiness,
@@ -38,13 +39,15 @@ class CreateAndDeletePodWithConfigMapVolume(base.PodWithVolumeBaseScenario):
         :param error_regexp: regexp string to search error in pod exec response
         :param command: array of strings representing container command
         :param status_wait: wait pod status for success if True
+        :param labels: additional labels to be attached to the resource
         """
         name = self.generate_random_name()
 
         self.client.create_configmap(
             name,
             namespace=self.namespace,
-            data=configmap_data
+            data=configmap_data,
+            labels=labels
         )
 
         volume = {

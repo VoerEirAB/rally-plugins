@@ -34,6 +34,9 @@ class NamespaceContext(common_context.BaseKubernetesContext):
             },
             "namespace_choice_method": {
                 "enum": ["random", "round_robin"]
+            },
+            "labels": {
+                "type": "object"
             }
         }
     }
@@ -48,14 +51,16 @@ class NamespaceContext(common_context.BaseKubernetesContext):
         })
 
         self.context["kubernetes"].setdefault("namespaces", [])
+        labels = self.config.get("labels", None)
         for _ in range(self.config.get("count")):
-            name = self.client.create_namespace(None, status_wait=False)
+            name = self.client.create_namespace(None, labels=labels,
+                                                status_wait=False)
             self.context["kubernetes"]["namespaces"].append(name)
             if self.config.get("with_serviceaccount"):
                 self.client.create_serviceaccount(
-                    name, namespace=name,
+                    name, namespace=name, labels=labels,
                     imagepullsecret=self.config.get("imagepullsecret"))
-                self.client.create_secret(name, namespace=name)
+                self.client.create_secret(name, namespace=name, labels=labels)
 
     def cleanup(self):
         """Method to clean up resource created for context."""

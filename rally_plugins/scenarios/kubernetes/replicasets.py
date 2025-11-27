@@ -29,7 +29,8 @@ class CreateAndDeleteReplicaSet(common.BaseKubernetesScenario):
     of replicas, wait until it won't be running and delete it after.
     """
 
-    def run(self, replicas, image, name=None, command=None, status_wait=True):
+    def run(self, replicas, image, name=None, command=None, status_wait=True,
+            labels=None):
         """Create and delete replicaset and wait for status optionally.
 
         :param replicas: number of replicas for replicaset
@@ -37,6 +38,7 @@ class CreateAndDeleteReplicaSet(common.BaseKubernetesScenario):
         :param name: custom replicaset name
         :param status_wait: wait for full status if True
         :param command: array of strings representing container command
+        :param labels: additional labels to be attached to the resource
         """
         namespace = self.choose_namespace()
 
@@ -46,7 +48,8 @@ class CreateAndDeleteReplicaSet(common.BaseKubernetesScenario):
             image=image,
             namespace=namespace,
             command=command,
-            status_wait=status_wait
+            status_wait=status_wait,
+            labels=labels
         )
 
         self.client.delete_replicaset(
@@ -65,7 +68,7 @@ class CreateScaleAndDeleteReplicaSetPlugin(common.BaseKubernetesScenario):
     """
 
     def run(self, image, replicas, scale_replicas, name=None, command=None,
-            status_wait=True):
+            status_wait=True, labels=None):
         """Create replicaset, scale for number of replicas and then delete it.
 
         :param image: replicaset pod template image
@@ -74,6 +77,7 @@ class CreateScaleAndDeleteReplicaSetPlugin(common.BaseKubernetesScenario):
         :param name: custom replicaset name
         :param command: array of strings representing container command
         :param status_wait: wait for full status if True
+        :param labels: additional labels to be attached to the resource
         """
         namespace = self.choose_namespace()
 
@@ -83,7 +87,8 @@ class CreateScaleAndDeleteReplicaSetPlugin(common.BaseKubernetesScenario):
             replicas=replicas,
             image=image,
             command=command,
-            status_wait=status_wait
+            status_wait=status_wait,
+            labels=labels
         )
 
         self.client.scale_replicaset(

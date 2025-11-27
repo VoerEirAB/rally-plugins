@@ -24,12 +24,17 @@ class LocalStorageClassContext(common_context.BaseKubernetesContext):
     CONFIG_SCHEMA = {
         "type": "object",
         "additionalProperties": False,
-        "properties": {}
+        "properties": {
+            "labels": {
+                "type": "object"
+            }
+        }
     }
 
     def setup(self):
         self.context["kubernetes"].setdefault("storageclass", None)
-        name = self.client.create_local_storageclass()
+        labels = self.config.get("labels", None)
+        name = self.client.create_local_storageclass(labels=labels)
         self.context["kubernetes"]["storageclass"] = name
 
     def cleanup(self):

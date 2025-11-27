@@ -32,7 +32,7 @@ class CreateAndDeletePodWithLocalPVVolume(base.PodWithVolumeBaseScenario):
 
     def run(self, image, mount_path, persistent_volume,
             persistent_volume_claim, check_cmd=None, error_regexp=None,
-            command=None, status_wait=True):
+            command=None, status_wait=True, labels=None):
         """Create pod with local PV, optionally check and delete then.
 
         Create pod with local persistent volume, optionally wait for it's
@@ -49,6 +49,7 @@ class CreateAndDeletePodWithLocalPVVolume(base.PodWithVolumeBaseScenario):
         :param error_regexp: regexp string to search error in pod exec response
         :param command: array of strings representing container command
         :param status_wait: wait pod status for success if True
+        :param labels: additional labels to be attached to the resource
         """
         name = self.generate_random_name()
 
@@ -60,7 +61,8 @@ class CreateAndDeletePodWithLocalPVVolume(base.PodWithVolumeBaseScenario):
             local_path=persistent_volume["local_path"],
             access_modes=persistent_volume["access_modes"],
             node_affinity=persistent_volume["node_affinity"],
-            status_wait=status_wait
+            status_wait=status_wait,
+            labels=labels
         )
 
         self.client.create_local_pvc(
@@ -68,7 +70,8 @@ class CreateAndDeletePodWithLocalPVVolume(base.PodWithVolumeBaseScenario):
             namespace=self.namespace,
             storage_class=self.context["kubernetes"]["storageclass"],
             access_modes=persistent_volume_claim["access_modes"],
-            size=persistent_volume_claim["size"]
+            size=persistent_volume_claim["size"],
+            labels=labels
         )
 
         volume = {
@@ -95,7 +98,8 @@ class CreateAndDeletePodWithLocalPVVolume(base.PodWithVolumeBaseScenario):
             check_cmd=check_cmd,
             error_regexp=error_regexp,
             volume=volume,
-            status_wait=status_wait
+            status_wait=status_wait,
+            labels=labels
         )
 
         with atomic.ActionTimer(

@@ -24,7 +24,7 @@ from rally_plugins.scenarios.kubernetes.volumes import base
 class CreateAndDeletePodWithEmptyDirVolume(base.PodWithVolumeBaseScenario):
 
     def run(self, image, mount_path, check_cmd=None, error_regexp=None,
-            command=None, status_wait=True):
+            command=None, status_wait=True, labels=None):
         """Create pod with emptyDir volume, optionally check and delete then.
 
         Create pod with emptyDir volume, optionally wait for it's readiness,
@@ -36,6 +36,7 @@ class CreateAndDeletePodWithEmptyDirVolume(base.PodWithVolumeBaseScenario):
         :param error_regexp: regexp string to search error in pod exec response
         :param command: array of strings representing container command
         :param status_wait: wait pod status for success if True
+        :param labels: additional labels to be attached to the resource
         """
         name = self.generate_random_name()
 
@@ -61,5 +62,6 @@ class CreateAndDeletePodWithEmptyDirVolume(base.PodWithVolumeBaseScenario):
             check_cmd=check_cmd,
             error_regexp=error_regexp,
             volume=volume,
-            status_wait=status_wait
+            status_wait=status_wait,
+            labels=labels
         )
