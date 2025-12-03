@@ -16,6 +16,7 @@ import os
 import re
 from distutils.version import LooseVersion
 
+import json
 from kubernetes import client as k8s_config
 from kubernetes.client import api_client
 from kubernetes.client.apis import batch_v1_api
@@ -59,7 +60,7 @@ API_VERSIONS_INFO = {
 # msidana: Setting image policy as IfNotPresent for all xRally resources
 # so that it works in environments with no internet/dockerhub
 # connectivity or where we don't get access to internal dockerhub.
-# The below policy helps in using the locally uploaded image(on 
+# The below policy helps in using the locally uploaded image(on
 # worker nodes) instead of fetching via docker pull command.
 IMAGE_PULL_POLICY = 'IfNotPresent'
 
@@ -392,7 +393,9 @@ class Kubernetes(service.Service):
             "metadata": {
                 "name": name,
                 "labels": {
-                    "role": name
+                    "role": name,
+                    "created_by": "xrally",
+                    "pod-security.kubernetes.io/enforce": "privileged"
                 }
             }
         }
@@ -570,6 +573,18 @@ class Kubernetes(service.Service):
             container_spec["ports"] = [{"containerPort": port}]
             if protocol is not None:
                 container_spec["ports"][0]["protocol"] = protocol
+
+        # hardcoding this for SUSE.
+        container_spec["securityContext"] = {
+            "allowPrivilegeEscalation": False,
+            "capabilities": {
+                "drop": ["ALL"]
+            },
+            "runAsNonRoot": True,
+            "seccompProfile": {
+                "type": "RuntimeDefault"
+            }
+        }
 
         kind = "Pod"
         manifest = {
