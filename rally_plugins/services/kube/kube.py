@@ -445,6 +445,7 @@ class Kubernetes(service.Service):
             }
         }
         if labels:
+            sa_manifest["metadata"].setdefault("labels", {})
             sa_manifest["metadata"]["labels"] = labels
         self.v1_client.create_namespaced_service_account(namespace=namespace,
                                                          body=sa_manifest)
@@ -752,6 +753,7 @@ class Kubernetes(service.Service):
             ]
         }
         if labels:
+            manifest["metadata"].setdefault("labels", {})
             manifest["metadata"]["labels"].update(labels)
         self.v1_client.create_namespaced_endpoints(
             namespace=namespace,
@@ -832,6 +834,7 @@ class Kubernetes(service.Service):
         }
 
         if labels:
+            manifest["metadata"].setdefault("labels", {})
             manifest["metadata"]["labels"].update(labels)
 
         if not self._spec.get("serviceaccounts"):
@@ -1391,6 +1394,7 @@ class Kubernetes(service.Service):
         }
 
         if labels:
+            manifest["metadata"].setdefault("labels", {})
             manifest["metadata"]["labels"].update(labels)
 
         if not self._spec.get("serviceaccounts"):
@@ -1555,6 +1559,7 @@ class Kubernetes(service.Service):
             del manifest["spec"]["template"]["spec"]["serviceAccountName"]
 
         if labels:
+            manifest["metadata"].setdefault("labels", {})
             manifest["metadata"]["labels"].update(labels)
 
         if node_labels:
@@ -1656,8 +1661,7 @@ class Kubernetes(service.Service):
             "volumeBindingMode": "WaitForFirstConsumer"
         }
         if labels:
-            if "labels" not in manifest["metadata"]:
-                manifest["metadata"].setdefault("labels", {})
+            manifest["metadata"].setdefault("labels", {})
             manifest["metadata"]["labels"].update(labels)
 
         self.v1_storage.create_storage_class(body=manifest)
@@ -1713,6 +1717,7 @@ class Kubernetes(service.Service):
         }
 
         if labels:
+            manifest["metadata"].setdefault("labels", {})
             manifest["metadata"]["labels"].update(labels)
 
         self.v1_client.create_persistent_volume(body=manifest)
@@ -1784,6 +1789,7 @@ class Kubernetes(service.Service):
         }
 
         if labels:
+            manifest["metadata"].setdefault("labels", {})
             manifest["metadata"]["labels"].update(labels)
 
         self.v1_client.create_namespaced_persistent_volume_claim(
@@ -1837,6 +1843,7 @@ class Kubernetes(service.Service):
             "data": data
         }
         if labels:
+            manifest["metadata"].setdefault("labels", {})
             manifest["metadata"]["labels"].update(labels)
         self.v1_client.create_namespaced_config_map(namespace=namespace,
                                                     body=manifest)

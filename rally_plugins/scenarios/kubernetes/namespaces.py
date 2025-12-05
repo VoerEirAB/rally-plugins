@@ -21,8 +21,10 @@ from rally_plugins.scenarios.kubernetes import common as common_scenario
 class ListNamespaces(common_scenario.BaseKubernetesScenario):
     """List cluster namespaces."""
 
-    def run(self):
-        """List cluster namespaces."""
+    def run(self, labels=None):
+        """List cluster namespaces.
+        :param labels: additional/optional labels to be attached to resource
+        """
         namespaces = self.client.list_namespaces()
         if namespaces:
             self.add_output(
