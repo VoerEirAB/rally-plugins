@@ -2,7 +2,7 @@
 # of appearance. Changing the order has an impact on the overall integration
 # process, which may cause wedges in the gate later.
 
-setuptools-scm                                         # MIT
+setuptools-scm>=8.0,<9                                 # MIT
 #rally>=0.11.0                                      # Touchstone will install manually; check postinst template
 #rally-openstack                                    # Touchstone will install manually; check postinst template
 requests>=2.14.2                                       # Apache License, Version 2.0

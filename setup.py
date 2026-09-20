@@ -32,9 +32,7 @@ EXRAS_REQUIREMENTS = {}
 
 
 setuptools.setup(
-    # version only works with python3.7; update the version when migrating to 
-    # python 3.10 or newer.
-    setup_requires=["setuptools_scm==3.3.3"],
+    setup_requires=["setuptools_scm>=8.0,<9"],
     use_scm_version=True,
     name="rally-plugins",
     packages=find_packages(exclude=["tests", "tests.*"]),
@@ -58,10 +56,6 @@ setuptools.setup(
                  "License :: OSI Approved :: Apache Software License",
                  "Operating System :: POSIX :: Linux",
                  "Programming Language :: Python",
-                 "Programming Language :: Python :: 2",
-                 "Programming Language :: Python :: 2.7",
                  "Programming Language :: Python :: 3",
-                 "Programming Language :: Python :: 3.4",
-                 "Programming Language :: Python :: 3.5",
-                 "Programming Language :: Python :: 3.6"]
+                 "Programming Language :: Python :: 3.12"]
 )
