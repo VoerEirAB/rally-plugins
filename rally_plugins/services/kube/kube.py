@@ -18,13 +18,12 @@ from distutils.version import LooseVersion
 
 from kubernetes import client as k8s_config
 from kubernetes.client import api_client
-from kubernetes.client.apis import batch_v1_api
-from kubernetes.client.apis import core_v1_api
-from kubernetes.client.apis import apps_v1_api
-from kubernetes.client.apis import extensions_v1beta1_api
-from kubernetes.client.apis import version_api
+from kubernetes.client.api import batch_v1_api
+from kubernetes.client.api import core_v1_api
+from kubernetes.client.api import apps_v1_api
+from kubernetes.client.api import version_api
 from kubernetes.client import rest
-from kubernetes.client.apis import storage_v1_api
+from kubernetes.client.api import storage_v1_api
 from kubernetes.config.kube_config import ConfigNode
 from kubernetes.config.exec_provider import ExecProvider
 from kubernetes.stream import stream
@@ -253,8 +252,14 @@ class Kubernetes(service.Service):
             if self.target_version >= LooseVersion('1.16'):
                 self._api_client = apps_v1_api.AppsV1Api(self.api)
             else:
-                self._api_client = extensions_v1beta1_api.ExtensionsV1beta1Api(
-                    self.api)
+                # NOTE: extensions/v1beta1 was removed from the Kubernetes
+                #   API server in 1.16+ and is no longer shipped by the
+                #   kubernetes python client, so there is no way to talk to
+                #   such an old cluster anymore.
+                raise exceptions.RallyException(
+                    "Kubernetes clusters older than 1.16 (target version: "
+                    "%s) are not supported: the extensions/v1beta1 API is "
+                    "no longer available." % self.target_version)
 
         return self._api_client
 
